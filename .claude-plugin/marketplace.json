@@ -1,6 +1,6 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "agent-prs",
+  "name": "issue-to-pr-agent",
   "description": "Install the GitHub issue → @claude → PR loop into any repository.",
   "owner": {
     "name": "Sayan Nandi",
@@ -8,7 +8,7 @@
   },
   "plugins": [
     {
-      "name": "agent-prs",
+      "name": "issue-to-pr-agent",
       "description": "Write an issue, comment @claude, get a PR. Installs and adapts the workflows, the PR-opening rules, and the per-collaborator billing script.",
       "source": "./",
       "category": "productivity"

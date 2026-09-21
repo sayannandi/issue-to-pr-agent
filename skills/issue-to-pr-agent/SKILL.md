@@ -1,9 +1,9 @@
 ---
-name: agent-prs
-description: Install the "GitHub issue → @claude → background agent → PR" workflow into a repository. Copies and adapts the two Claude Code Action workflows, the PR-opening rules for CLAUDE.md, and the per-collaborator billing script. Use when the user says "agent-prs", "/agent-prs", "set up @claude on this repo", "copy the claude issue workflow here", "make background agents open PRs", or asks how to replicate the issue→PR automation from another repo.
+name: issue-to-pr-agent
+description: Install the "GitHub issue → @claude → background agent → PR" workflow into a repository. Copies and adapts the two Claude Code Action workflows, the PR-opening rules for CLAUDE.md, and the per-collaborator billing script. Use when the user says "issue-to-pr-agent", "/issue-to-pr-agent", "set up @claude on this repo", "copy the claude issue workflow here", "make background agents open PRs", or asks how to replicate the issue→PR automation from another repo.
 ---
 
-# agent-prs
+# issue-to-pr-agent
 
 Installs the loop: write a GitHub issue with the decisions and context → comment
 `@claude` → Actions runs Claude Code on an ephemeral runner → it branches, works,

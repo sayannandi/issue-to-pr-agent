@@ -1,4 +1,4 @@
-# agent-prs
+# issue-to-pr-agent
 
 Write a GitHub issue. Comment `@claude`. Get a pull request.
 
@@ -9,14 +9,14 @@ generic YAML on you.
 ## Install
 
 ```
-/plugin marketplace add sayannandi/agent-prs
-/plugin install agent-prs@agent-prs
+/plugin marketplace add sayannandi/issue-to-pr-agent
+/plugin install issue-to-pr-agent@issue-to-pr-agent
 ```
 
 Then, from inside the repo you want to set up:
 
 ```
-/agent-prs
+/issue-to-pr-agent
 ```
 
 It reads the repo first, fills in the templates, commits on a branch and opens
