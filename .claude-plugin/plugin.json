@@ -1,7 +1,7 @@
 {
   "name": "issue-to-pr-agent",
-  "version": "0.1.0",
-  "description": "Install the GitHub issue → @claude → PR loop into any repository. Adapts the workflows to the repo's own package manager, services and evidence commands.",
+  "version": "0.2.0",
+  "description": "Write an issue, comment @agent, get a PR. Provider-neutral: Claude Code, OpenAI Codex, or any agent CLI.",
   "author": {
     "name": "Sayan Nandi",
     "url": "https://github.com/sayannandi"
@@ -9,5 +9,12 @@
   "homepage": "https://github.com/sayannandi/issue-to-pr-agent",
   "repository": "https://github.com/sayannandi/issue-to-pr-agent",
   "license": "MIT",
-  "keywords": ["github-actions", "automation", "pull-requests", "workflow", "background-agents"]
+  "keywords": [
+    "github-actions",
+    "automation",
+    "pull-requests",
+    "workflow",
+    "background-agents",
+    "agnostic"
+  ]
 }

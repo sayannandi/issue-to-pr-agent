@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The templates are workflows even though they do not live in
+      # .github/workflows/ here, so lint them as workflows.
+      - name: actionlint the workflow templates
+        run: |
+          bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint skills/issue-to-pr-agent/templates/*.yml
+
+      - name: agent_billing self-test
+        run: python3 skills/issue-to-pr-agent/templates/agent_billing.py --self-test
+
+      - name: plugin manifests are valid JSON
+        run: |
+          python3 -c "import json;[json.load(open(p)) for p in ['.claude-plugin/plugin.json','.claude-plugin/marketplace.json']]"
+
+      # A template placeholder that survives into an installed repo is a silent
+      # breakage, so every one of them must be documented in SKILL.md.
+      - name: every placeholder is documented
+        run: |
+          missing=0
+          for ph in $(grep -rho '__[A-Z_]*__' skills/issue-to-pr-agent/templates/ | sort -u); do
+            grep -q -- "$ph" skills/issue-to-pr-agent/SKILL.md || { echo "undocumented: $ph"; missing=1; }
+          done
+          exit $missing

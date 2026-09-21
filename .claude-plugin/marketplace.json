@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "issue-to-pr-agent",
-  "description": "Install the GitHub issue → @claude → PR loop into any repository.",
+  "description": "Install the GitHub issue \u2192 @agent \u2192 PR loop into any repository, on any model provider.",
   "owner": {
     "name": "Sayan Nandi",
     "url": "https://github.com/sayannandi"
@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "issue-to-pr-agent",
-      "description": "Write an issue, comment @claude, get a PR. Installs and adapts the workflows, the PR-opening rules, and the per-collaborator billing script.",
+      "description": "Write an issue, comment @agent, get a PR. Installs and adapts the workflows, the PR-opening rules, and the per-collaborator billing script. Runs on Claude Code, OpenAI Codex, or any agent CLI.",
       "source": "./",
       "category": "productivity"
     }

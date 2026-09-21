@@ -24,5 +24,3 @@ The PR body must paste evidence, not claims:
 - __CI_IMPOSSIBLE_CARVE_OUT__
 - If you could not run the evidence command, say so at the top of the PR body.
   Never open a silent PR.
-
-__MIGRATION_NOTE__

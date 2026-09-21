@@ -1,22 +1,24 @@
 #!/usr/bin/env python3
-"""Onboard a collaborator so their @claude runs bill their own Claude account.
+"""Onboard a collaborator so their @agent runs bill their own model account.
 
-Every GitHub Actions run of `claude.yml` / `claude-code-review.yml` spends
-somebody's Claude subscription. The workflows pick the token by `github.actor`,
-so each person needs their own repo secret and their own clause in that
-expression. This script maintains both.
+Every GitHub Actions run of `agent.yml` / `agent-review.yml` spends somebody's
+model subscription or API credit. The workflows pick the credential by
+`github.actor` on a single `AGENT_TOKEN:` line, so each person needs their own
+repo secret and their own clause in that expression. This script maintains both.
 
-    scripts/claude_billing.py add <github-login> [--grant]
-    scripts/claude_billing.py --self-test
+    scripts/agent_billing.py add <github-login> [--grant]
+    scripts/agent_billing.py --self-test
 
-`add` prompts for the collaborator's token (from `claude setup-token`, run on
-*their* machine — you never need to see it in a chat), stores it as
-CLAUDE_TOKEN_<LOGIN>, and rewrites the token expression in both workflows.
-`--grant` also gives them write access to the repo first.
+`add` prompts for the collaborator's token (from `claude setup-token`, an
+OpenAI API key, or whatever AGENT_RUNNER needs — obtained on *their* machine, so
+you never see it in a chat), stores it as AGENT_TOKEN_<LOGIN>, and rewrites the
+token expression in both workflows.  `--grant` also gives them write access
+to the repo first.
 
 The workflow line is the only state: existing clauses are parsed back out of it,
-so there is no map file to keep in sync. Commit the workflow changes afterwards
-— the comment-triggered workflows only ever run the copy on the default branch.
+so there is no map file to keep in sync. Do not hand-flatten that line — see
+`rewrite`. Commit the workflow changes afterwards; the comment-triggered
+workflows only ever run the copy on the default branch.
 """
 
 from __future__ import annotations
@@ -30,19 +32,19 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WORKFLOWS = [
-    REPO_ROOT / ".github/workflows/claude.yml",
-    REPO_ROOT / ".github/workflows/claude-code-review.yml",
+    REPO_ROOT / ".github/workflows/agent.yml",
+    REPO_ROOT / ".github/workflows/agent-review.yml",
 ]
 
 # The generated line, e.g.
-#   claude_code_oauth_token: ${{ github.actor == 'x' && secrets.Y || ... || '' }}
-TOKEN_LINE = re.compile(r"^(?P<indent>[ \t]*)claude_code_oauth_token:.*$", re.M)
+#   AGENT_TOKEN: ${{ github.actor == 'x' && secrets.Y || ... || '' }}
+TOKEN_LINE = re.compile(r"^(?P<indent>[ \t]*)AGENT_TOKEN:.*$", re.M)
 CLAUSE = re.compile(r"github\.actor == '(?P<login>[^']+)' && secrets\.(?P<secret>[A-Za-z0-9_]+)")
 
 
 def secret_name(login: str) -> str:
     """GitHub secret names allow only alphanumerics and underscore."""
-    return "CLAUDE_TOKEN_" + re.sub(r"[^A-Za-z0-9]", "_", login).upper()
+    return "AGENT_TOKEN_" + re.sub(r"[^A-Za-z0-9]", "_", login).upper()
 
 
 def parse_clauses(line: str) -> list[tuple[str, str]]:
@@ -54,8 +56,9 @@ def build_expr(pairs: list[tuple[str, str]]) -> str:
     """Render the actor->secret chain.
 
     GitHub evaluates && above ||, so this reads as a chain of (test && value)
-    with a '' fallback: an unknown actor yields an empty token and the action
-    fails loudly instead of silently charging whoever is listed last.
+    with a '' fallback: an unknown actor yields an empty token, and the
+    workflow's preflight step says so on the ticket instead of silently
+    charging whoever is listed last.
     String comparison in GitHub expressions is case-insensitive.
     """
     clauses = [f"github.actor == '{login}' && secrets.{secret}" for login, secret in pairs]
@@ -75,9 +78,19 @@ def upsert(pairs: list[tuple[str, str]], login: str, secret: str) -> list[tuple[
 def rewrite(text: str, login: str, secret: str) -> str:
     m = TOKEN_LINE.search(text)
     if not m:
-        raise SystemExit("no claude_code_oauth_token line found — workflow changed shape?")
-    pairs = upsert(parse_clauses(m.group(0)), login, secret)
-    new_line = f"{m['indent']}claude_code_oauth_token: {build_expr(pairs)}"
+        raise SystemExit("no AGENT_TOKEN line found — workflow changed shape?")
+    pairs = parse_clauses(m.group(0))
+    if not pairs:
+        # The line was hand-flattened to a bare `${{ secrets.AGENT_TOKEN }}`.
+        # Rewriting it now would emit a chain containing only the new person,
+        # and the repo owner's own runs would start resolving to '' — a silent
+        # break discovered the next time they comment @agent.
+        raise SystemExit(
+            f"the AGENT_TOKEN line in one workflow has no `github.actor == '...'` clause, "
+            f"so it was hand-edited. Restore the generated form first:\n"
+            f"  AGENT_TOKEN: {build_expr([('<owner-login>', 'AGENT_TOKEN')])}"
+        )
+    new_line = f"{m['indent']}AGENT_TOKEN: {build_expr(upsert(pairs, login, secret))}"
     return text[: m.start()] + new_line + text[m.end() :]
 
 
@@ -97,29 +110,31 @@ def cmd_add(login: str, grant: bool) -> None:
         gh("api", "-X", "PUT", f"repos/{repo}/collaborators/{login}", "-f", "permission=push")
         print(f"invited {login} to {repo} (write)")
 
-    print(f"Ask {login} to run `claude setup-token` and paste the result here.")
-    print("It is never echoed and never written to disk.")
+    print(f"Ask {login} for a token for this repo's AGENT_RUNNER, minted on their")
+    print("own machine (`claude setup-token`, an OpenAI API key, etc.).")
     token = getpass.getpass("token: ").strip()
     if not token:
         raise SystemExit("no token given, nothing changed")
 
     name = secret_name(login)
-    gh("secret", "set", name, "--body", token)
+    # Via stdin, never argv: a `--body <token>` would put the secret in this
+    # process's command line, readable by any other user's `ps` on this machine.
+    gh("secret", "set", name, "--body-file", "-", stdin=token)
     print(f"set secret {name}")
 
     for path in WORKFLOWS:
         path.write_text(rewrite(path.read_text(), login, name))
         print(f"updated {path.relative_to(REPO_ROOT)}")
 
-    print(f"\nNext: git add .github/workflows && git commit && git push")
-    print(f"      {login}'s @claude runs bill their account once that lands on the default branch.")
+    print("\nNext: git add .github/workflows && git commit && git push")
+    print(f"      {login}'s @agent runs bill their account once that lands on the default branch.")
 
 
 def self_test() -> None:
-    assert secret_name("7BitOctocat") == "CLAUDE_TOKEN_7BITOCTOCAT"
-    assert secret_name("foo-bar.baz") == "CLAUDE_TOKEN_FOO_BAR_BAZ"
+    assert secret_name("7BitOctocat") == "AGENT_TOKEN_7BITOCTOCAT"
+    assert secret_name("foo-bar.baz") == "AGENT_TOKEN_FOO_BAR_BAZ"
 
-    line = "  claude_code_oauth_token: ${{ github.actor == 'a' && secrets.S_A || '' }}"
+    line = "      AGENT_TOKEN: ${{ github.actor == 'a' && secrets.S_A || '' }}"
     assert parse_clauses(line) == [("a", "S_A")]
 
     # round trip: parse -> build reproduces the same expression
@@ -133,14 +148,25 @@ def self_test() -> None:
     text = f"x: 1\n{line}\ny: 2\n"
     out = rewrite(text, "b", "S_B")
     assert out.startswith("x: 1\n") and out.endswith("\ny: 2\n"), out
-    assert out.splitlines()[1].startswith("  claude_code_oauth_token: "), out
+    assert out.splitlines()[1].startswith("      AGENT_TOKEN: "), out
     assert parse_clauses(out) == [("a", "S_A"), ("b", "S_B")], out
 
     # the fallback clause must survive, or an unknown actor silently bills someone
     assert out.splitlines()[1].endswith("|| '' }}"), out
 
-    # the real workflows must already be in generated shape
+    # a hand-flattened line is refused instead of silently dropping the owner
+    try:
+        rewrite("  AGENT_TOKEN: ${{ secrets.AGENT_TOKEN }}\n", "b", "S_B")
+    except SystemExit as e:
+        assert "hand-edited" in str(e), e
+    else:
+        raise AssertionError("flattened token line was rewritten instead of refused")
+
+    # an installed repo's workflows must already be in generated shape. Skipped
+    # when running from the plugin's own templates/ dir, where they do not exist.
     for path in WORKFLOWS:
+        if not path.exists():
+            continue
         m = TOKEN_LINE.search(path.read_text())
         assert m, path
         assert parse_clauses(m.group(0)), f"{path}: no actor clauses"
