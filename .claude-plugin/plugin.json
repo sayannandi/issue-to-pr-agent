@@ -1,0 +1,13 @@
+{
+  "name": "agent-prs",
+  "version": "0.1.0",
+  "description": "Install the GitHub issue → @claude → PR loop into any repository. Adapts the workflows to the repo's own package manager, services and evidence commands.",
+  "author": {
+    "name": "Sayan Nandi",
+    "url": "https://github.com/sayannandi"
+  },
+  "homepage": "https://github.com/sayannandi/agent-prs",
+  "repository": "https://github.com/sayannandi/agent-prs",
+  "license": "MIT",
+  "keywords": ["github-actions", "automation", "pull-requests", "workflow", "background-agents"]
+}
